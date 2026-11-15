@@ -27,6 +27,7 @@ interface AppState {
   userLoading: boolean;
   products: Product[];
   catalogSource: string;
+  catalogError: string;
   favorites: string[];
   error: string;
   userError: string;
@@ -44,6 +45,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [avatar, setAvatar] = useState<Avatar | null>(null);
   const [products, setProducts] = useState<Product[]>([]),
     [catalogSource, setCatalogSource] = useState(""),
+    [catalogError, setCatalogError] = useState(""),
     [favorites, setFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true),
     [userLoading, setUserLoading] = useState(true),
@@ -58,11 +60,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(id);
   }, [notice]);
   const refreshCatalog = useCallback(async () => {
-    const result = await api<{ products: Product[]; source: string }>(
-      "/api/products",
-    );
-    setProducts(result.products);
-    setCatalogSource(result.source);
+    setCatalogError("");
+    try {
+      const result = await api<{ products: Product[]; source: string }>(
+        "/api/products",
+      );
+      setProducts(result.products);
+      setCatalogSource(result.source);
+    } catch (e) {
+      setCatalogError(errorText(e));
+    }
   }, []);
   useEffect(() => {
     let live = true;
@@ -82,9 +89,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         if (live) setLoading(false);
       });
-    refreshCatalog().catch((e) => {
-      if (live) setError(errorText(e));
-    });
+    void refreshCatalog();
     return () => {
       live = false;
     };
@@ -197,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         userLoading,
         products,
         catalogSource,
+        catalogError,
         favorites,
         error,
         userError,

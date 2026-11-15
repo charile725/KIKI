@@ -35,6 +35,8 @@ npm.cmd start
 
 `npm start` 同時提供 `dist` 與 API；沒有任何部署腳本或開機自動 Migration。
 
+若出現 `Unexpected token 'T', "The page c"... is not valid JSON`，代表 API 請求收到文字錯誤頁，並非預期的 JSON。新版會顯示失敗的 API 路徑、HTTP 狀態與後端路由提示。本機請使用 `npm.cmd run dev` 同時啟動前後端，或建置後使用 `npm.cmd start`；僅提供 `dist` 的靜態主機不會執行 Node API，必須另行啟動後端並將 `/api/*` 轉送至該服務。可開啟同一網站的 `/api/health` 確認是否回傳 JSON；文字或 HTML 頁面表示需檢查主機路由或後端服務。
+
 ## Supabase 設定與 Migration
 
 ### 選擇一：獨立測試專案

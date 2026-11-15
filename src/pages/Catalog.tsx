@@ -197,7 +197,7 @@ function StyleAgent() {
   );
 }
 export default function CatalogPage() {
-  const { products, error, catalogSource } = useApp();
+  const { products, catalogError, catalogSource, refreshCatalog } = useApp();
   const [params] = useSearchParams();
   const agent = useRef<HTMLDivElement>(null);
   const [category, setCategory] = useState("全部"),
@@ -303,8 +303,8 @@ export default function CatalogPage() {
           {catalogSource === "preview-fixtures" ? " · 尚未連線 Supabase" : ""}
         </span>
       </div>
-      {error ? (
-        <ErrorBox message={error} />
+      {catalogError ? (
+        <ErrorBox message={catalogError} retry={() => void refreshCatalog()} />
       ) : !catalogSource ? (
         <div className="product-grid">
           {[1, 2, 3, 4].map((i) => (
@@ -338,7 +338,7 @@ export default function CatalogPage() {
 }
 export function ProductPage() {
   const { id } = useParams();
-  const { products, catalogSource, toggleFavorite, favorites, toast, profile, avatar } =
+  const { products, catalogSource, catalogError, refreshCatalog, toggleFavorite, favorites, toast, profile, avatar } =
     useApp();
   const product = products.find((p) => p.id === id);
   const [size, setSize] = useState(""),
@@ -348,6 +348,16 @@ export function ProductPage() {
     setSize("");
     setColor("");
   }, [id]);
+  if (catalogError)
+    return (
+      <div className="page product-page">
+        <ErrorBox message={catalogError} retry={() => void refreshCatalog()} />
+        <Link className="text-link back-link" to="/products">
+          <ArrowLeft size={15} />
+          返回所有商品
+        </Link>
+      </div>
+    );
   if (!catalogSource)
     return (
       <div className="page loading-page">

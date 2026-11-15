@@ -134,7 +134,7 @@ function Header() {
   );
 }
 function Home() {
-  const { products, avatar, session } = useApp();
+  const { products, catalogError, refreshCatalog, avatar, session } = useApp();
   return (
     <>
       <section className="hero page">
@@ -243,7 +243,9 @@ function Home() {
           </Link>
         </div>
         <div className="home-products">
-          {products.length
+          {catalogError ? (
+            <ErrorBox message={catalogError} retry={() => void refreshCatalog()} />
+          ) : products.length
             ? products
                 .slice(0, 4)
                 .map((p) => <ProductCard key={p.id} product={p} />)
