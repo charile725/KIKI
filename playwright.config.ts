@@ -45,6 +45,7 @@ export default defineConfig({
       env: {
         SUPABASE_URL: "http://127.0.0.1:54329",
         SUPABASE_PUBLISHABLE_KEY: "sb_publishable_e2e_only",
+        SUPABASE_SECRET_KEY: "sb_secret_e2e_only",
         PORT: "3129",
         WEB_PORT: "4179",
         APP_ORIGIN: "http://127.0.0.1:4179",

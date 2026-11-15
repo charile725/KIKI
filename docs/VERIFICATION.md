@@ -1,5 +1,26 @@
 # 驗證紀錄與驗收邊界
 
+## 2026-11-15：Supabase 接線與簡化註冊
+
+已在使用者指定的 Supabase 專案建立六張網站資料表、owner RLS、註冊 profile trigger、私人 `kiki-private` bucket 與八件示範商品。資料庫連線使用 Supabase Root 2021 CA 驗證 TLS；公開憑證位於 `supabase/prod-supabase.cer`，SHA-256 指紋為 `80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA`。
+
+註冊改為 Email 與至少六字元密碼，暱稱選填、不重複輸入密碼。後端專用管理金鑰只用於建立已確認的新帳號；前端用使用者密碼登入，會員資料仍使用 JWT 與 RLS。這沒有修改專案全域的 Confirm Email 設定；免驗證信由網站的快速註冊 API 完成。
+
+本次驗證：
+
+- TypeScript（含 Node ESM 路徑）、Lint、正式建置與建置產物瀏覽器檢查通過。
+- `npm test`：18 項通過，包含註冊、重複帳號不覆寫、錯誤密碼與管理金鑰不公開。
+- 桌機、平板、手機各驗證簡化註冊與完整分身／推薦／試穿／保存旅程，共 6 項通過。此組使用 Supabase HTTP contract 替身。
+- `npm run test:live:signup`：真實 Supabase 與 Chrome 實測通過。涵蓋六碼密碼、註冊後直接登入、重新整理保持登入、登出再登入、收藏保存、跨帳號讀寫隔離、私人照片只有 owner 可存取與公開網址不能下載。
+- 真實驗收只建立隨機命名的測試帳號與圖片，結束後已清除；不保留測試密碼或 session。
+- 掃描 27 個前端建置檔，未發現管理金鑰或資料庫密碼。`.env` 與 `.env.supabase-admin` 由 Git 忽略。
+
+未更新 `ai-sale-alpha.vercel.app`：目前 CLI 登入的 Vercel 帳號無法存取此專案。需在該網站所屬專案設定 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、後端 `SUPABASE_SECRET_KEY` 與正確 `APP_ORIGIN`，再部署包含本次變更的版本。真實驗收使用本機 Node 提供網站與 API、連接遠端 Supabase，不能視為該 Vercel 網址已部署驗收。
+
+## 初版驗證紀錄
+
+以下保留初版未連線時的歷史驗證結果；目前 Supabase 狀態與最新驗收以上節為準。
+
 本次環境：Windows PowerShell、Node 24.22.1、系統 Google Chrome。沒有提供 Supabase URL / publishable key，Docker daemon 未啟動。沒有使用遠端資料庫、套用正式 Migration、建立真實帳號或部署。
 
 最終檢查：TypeScript、Lint 與建置通過；核心／API／PostgreSQL 測試 **10 / 10** 通過；桌機、平板與手機瀏覽器適用案例 **10 / 10** 通過。手機專用案例不在桌機／平板重複執行，因此完整矩陣另有 2 項不適用而跳過。`npm audit` 全部相依套件為 **0 vulnerabilities**。真實 Supabase 測試 **1 項跳過**，原因是缺少連線資訊與測試帳號，不能視為已完成正式資料庫驗收。

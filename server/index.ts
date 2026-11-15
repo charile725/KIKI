@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { catalog } from "../shared/catalog.js";
 import type { Avatar, Product, Profile, Tryon } from "../shared/types.js";
-import { recommendationSchema, tryonSchema } from "../shared/validation.js";
+import { recommendationSchema, registrationSchema, tryonSchema } from "../shared/validation.js";
 import { recommend } from "./recommend.js";
 import { getTryonAdapter } from "./tryon.js";
 
@@ -34,6 +34,9 @@ function configured() {
   } catch {
     return false;
   }
+}
+function instantSignup() {
+  return configured() && !!process.env.SUPABASE_SECRET_KEY?.startsWith("sb_secret_");
 }
 function client(token?: string): SupabaseClient {
   if (!configured())
@@ -132,6 +135,7 @@ export async function handler(req: IncomingMessage, res: ServerResponse) {
       if (req.method === "GET" && pathname === "/api/config")
         return send(res, 200, {
           configured: configured(),
+          instantSignup: instantSignup(),
           supabaseUrl: process.env.SUPABASE_URL || "",
           supabaseKey: configured() ? process.env.SUPABASE_PUBLISHABLE_KEY : "",
           recommendationMode:
@@ -144,6 +148,34 @@ export async function handler(req: IncomingMessage, res: ServerResponse) {
           database: "supabase",
           configured: configured(),
         });
+      if (req.method === "POST" && pathname === "/api/auth/register") {
+        if (!instantSignup())
+          throw new HttpError(503, "快速註冊尚未設定，請稍後重試。");
+        rate(`signup:${req.socket.remoteAddress || "unknown"}`);
+        const parsed = registrationSchema.safeParse(await json(req));
+        if (!parsed.success)
+          throw new HttpError(400, parsed.error.issues[0].message);
+        const { email, password, display_name } = parsed.data;
+        // Only registration uses an admin client. Personal data still uses JWT + RLS.
+        const admin = createClient(
+          process.env.SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!,
+          { auth: { autoRefreshToken: false, persistSession: false } },
+        );
+        const { error } = await admin.auth.admin.createUser({
+          email, password, email_confirm: true,
+          user_metadata: { display_name: display_name || email.split("@")[0].slice(0, 40) },
+        });
+        if (error) {
+          if (error.code === "email_exists" || /already.*registered|already.*exists/i.test(error.message))
+            throw new HttpError(409, "這個信箱已註冊，請直接登入。");
+          if (error.code === "weak_password")
+            throw new HttpError(400, "密碼不符合此專案要求，請使用更長的密碼。");
+          if (error.status === 429)
+            throw new HttpError(429, "註冊太頻繁，請稍後再試。");
+          throw new HttpError(503, "註冊暫時無法完成，請稍後重試。");
+        }
+        return send(res, 201, { created: true });
+      }
       if (req.method === "GET" && pathname === "/api/products") {
         if (!configured())
           return send(res, 200, {

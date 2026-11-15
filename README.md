@@ -1,6 +1,6 @@
 # KIKI — 你的風格，由你定義
 
-繁體中文服飾購物 Demo。React + TypeScript + Vite、Node.js API、**Supabase Auth / PostgreSQL / Private Storage**。支援 Vercel 部署；本次修正未連接或修改任何遠端資料庫。
+繁體中文服飾購物 Demo。React + TypeScript + Vite、Node.js API、**Supabase Auth / PostgreSQL / Private Storage**。已接上指定的 Supabase 專案並建立資料表、私人 Storage 與八件示範商品；支援 Vercel 部署。
 
 介面以**手機使用為主**：底部五入口、固定試穿／收藏與分身下一步、可展開的衣櫃設定、較大的表單與觸控區。桌機與平板仍保留完整流程；詳細設計與修改檔案見 [手機 UI / UX 說明](docs/MOBILE-UX.md)。
 
@@ -8,7 +8,7 @@
 
 開始工作時 `C:\Users\linei\Desktop\coding\kiki` 為空目錄，沒有框架、資料庫、商品、圖片、API、頁面、設計系統或 Git 記錄可沿用。因此本次為新增專案，沒有取代或刪除既有功能。
 
-選擇 React / Vite 處理互動介面；Supabase 負責帳號、持久化資料與私人檔案；輕量 Node HTTP API 負責 JWT 驗證、推薦與圖片合成，使用登入者 JWT 遵守 RLS，**不需要 service_role**。不使用 SQLite、localStorage 假資料庫或假登入；Supabase SDK 僅以 localStorage 管理登入 session。
+選擇 React / Vite 處理互動介面；Supabase 負責帳號、持久化資料與私人檔案；輕量 Node HTTP API 負責 JWT 驗證、推薦與圖片合成，私人資料操作使用登入者 JWT 遵守 RLS。快速註冊另由後端專用 secret key 建立已確認的新帳號；此管理金鑰不會傳到瀏覽器。Supabase SDK 以 localStorage 管理登入 session，未使用假登入或假資料庫。
 
 ## 快速啟動
 
@@ -17,7 +17,7 @@
 ```powershell
 npm.cmd ci
 Copy-Item .env.example .env
-# 編輯 .env 的 SUPABASE_URL 與 SUPABASE_PUBLISHABLE_KEY
+# 編輯 .env 的 SUPABASE_URL、SUPABASE_PUBLISHABLE_KEY、SUPABASE_SECRET_KEY
 npm.cmd run dev
 ```
 
@@ -43,7 +43,7 @@ npm.cmd start
 
 1. 在既有 Vercel 專案部署包含這些檔案的版本。Framework Preset 為 Vite，建置指令為 `npm run build`，輸出目錄為 `dist`。
 2. 在 Vercel 的 Environment Variables 設定 `APP_ORIGIN=https://ai-sale-alpha.vercel.app`。若綁定其他正式網域，改填實際使用的網址，不加結尾斜線。本機 `.env` 不會自動成為雲端設定。
-3. 尚未設定 Supabase 時，商品 API 仍提供八件示範商品；如需會員、收藏與試穿，再設定 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`，並依下節執行 Migration、設定 Supabase Auth 的 Site URL 與 Redirect URLs。
+3. 在 Vercel 設定 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`，以及供快速註冊使用的後端 `SUPABASE_SECRET_KEY`。資料表已建立的專案不需重跑 Migration。本機 `.env` 與 `.env.supabase-admin` 不會上傳到 Git 或自動套用到 Vercel。
 4. 部署完成後檢查 `/api/health`、`/api/config`、`/api/products` 都回傳 JSON，並直接開啟、重新整理 `/products/cloud-blazer`。API 若回傳 Vercel 的 `NOT_FOUND`，代表該版本未包含 Function 或部署目錄設定錯誤。
 
 路由與 Function 配置依照 [Vercel Node.js Functions](https://vercel.com/docs/functions/runtimes/node-js) 與 [Vite SPA 部署說明](https://vercel.com/docs/frameworks/frontend/vite#using-vite-to-make-spas)。
@@ -53,12 +53,12 @@ npm.cmd start
 ### 選擇一：獨立測試專案
 
 1. 在 Supabase 建立新的開發／測試專案。不要使用正式商店資料庫。
-2. 在 SQL Editor 按順序執行下列兩個檔案。這是需要由你明確執行的設定步驟，應用程式不會自動套用。
+2. 在 SQL Editor 按順序執行下列兩個檔案，或將正確編碼的連線字串填入本機 `.env.supabase-admin` 的 `DATABASE_URL`，執行 `npm.cmd run db:setup`。腳本只在六張網站資料表都不存在時建立結構；再次執行時保留既有結構與商品，若發現不完整結構則停止，不會刪表。應用程式啟動不會自動套用 Migration。
    - `supabase/migrations/202611140001_kiki_schema.sql`：六個 kiki_ 資料表、RLS、註冊 trigger、Private Storage bucket 與四種檔案權限。
    - `supabase/migrations/202611140002_demo_catalog.sql`：八件展示商品，衝突時不覆蓋既有商品。
 3. 在 Authentication 的 URL Configuration 設定 Site URL 為 `http://127.0.0.1:5173`，將相同網址加入 Redirect URLs。若使用其他埠或主機，需一起更新。
-4. 使用 Email / Password。正式預設若要求驗證信箱，註冊畫面會引導使用者收信；登入後進入分身。為了即時展示，可僅在測試專案關閉 Confirm email。密碼至少八字元。
-5. `.env` 填入 Project URL 及 **publishable key**（或舊版 anon JWT）。不得使用 `service_role` / `sb_secret_`；伺服器會拒絕將秘密 Supabase 金鑰送到前端。
+4. 註冊只需 Email 與至少六字元密碼，暱稱選填，沒有確認密碼或照片同意勾選。設定後端管理金鑰後，`/api/auth/register` 使用 Supabase Admin `createUser(email_confirm: true)` 建立已確認的新帳號，前端隨即以使用者的密碼登入；不寄驗證信，也不修改既有帳號的密碼。註冊成功先進入商品頁，使用者主動進入分身／試穿流程時才建立分身。
+5. `.env` 填入 Project URL 及 **publishable key**（或舊版 anon JWT），後端快速註冊另填 `SUPABASE_SECRET_KEY=sb_secret_…`。管理金鑰不得填入公開 key 欄位或加上 `VITE_` 前綴。沒有管理金鑰時保留 Supabase 原生註冊，是否收驗證信依該專案 Auth 設定。
 6. 重新啟動 `npm run dev`，開始完整 Demo。
 
 Migration 使用獨立 `kiki_` 表名；如果你的資料庫已有同名資料表或 bucket，請先人工檢視與調整，不能直接重跑。未提供會清除資料的 rollback。商品 seed 清楚標示為展示 fixtures，不是真實商店、價格承諾或實際庫存。
@@ -80,6 +80,8 @@ npx supabase status
 | --- | --- | --- |
 | `SUPABASE_URL` | Supabase URL | 必填，測試專案或本機 |
 | `SUPABASE_PUBLISHABLE_KEY` | 公開 publishable / anon key | 必填；遵守 RLS，不是管理秘密 |
+| `SUPABASE_SECRET_KEY` | 後端快速註冊：建立已確認的新帳號 | 只留在伺服器；設定後新註冊免驗證信 |
+| `DATABASE_URL` | 本機 `db:setup` 連線 | 只放 `.env.supabase-admin`；密碼特殊符號需 URL 編碼 |
 | `PORT` | Node API 埠 | `3001` |
 | `WEB_PORT` | Vite 埠 | `5173` |
 | `APP_ORIGIN` | 允許發起寫入 API 的網站 Origin | `http://127.0.0.1:5173` |
@@ -185,6 +187,7 @@ npm.cmd test
 npm.cmd run test:e2e
 npm.cmd run test:build
 npm.cmd run test:live
+npm.cmd run test:live:signup
 ```
 
 E2E 使用系統 Chrome，不安裝額外瀏覽器；測試用埠為 4179（前端）、3129（實際 API）、54329（明確標示的 Supabase HTTP 替身）。請先確保這些埠未被占用。`test:live` 需另設兩個測試帳號環境變數，沒有資訊時會跳過，不會冒充通過。詳見驗證文件。

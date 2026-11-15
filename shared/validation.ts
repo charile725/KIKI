@@ -34,8 +34,11 @@ export const tryonSchema = z.object({
   color: z.string().min(1).max(30),
 });
 export const authSchema = z.object({
-  email: z.email("請輸入有效的電子郵件"),
-  password: z.string().min(8, "密碼至少需要 8 個字元").max(128),
+  email: z.string().trim().toLowerCase().pipe(z.email("請輸入有效的電子郵件")),
+  password: z.string().min(6, "密碼至少需要 6 個字元").max(128),
+});
+export const registrationSchema = authSchema.extend({
+  display_name: z.string().trim().max(40, "暱稱最多 40 個字").optional(),
 });
 export function errorText(error: unknown): string {
   if (error instanceof z.ZodError)

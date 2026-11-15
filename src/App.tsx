@@ -155,7 +155,7 @@ function Home() {
           <div className="hero-ctas">
             <Link
               className="btn btn-dark"
-              to={session ? (avatar ? "/products" : "/avatar") : "/auth"}
+              to={session ? (avatar ? "/products" : "/avatar") : "/auth?redirect=%2Favatar"}
             >
               {avatar ? "探索我的風格" : "建立我的 AI 分身"}
               <ArrowUpRight size={19} />

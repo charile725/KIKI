@@ -11,9 +11,10 @@ import {
 import { useApp } from "../context";
 import { authSchema, errorText } from "../../shared/validation";
 import { ErrorBox, SetupNotice, Spinner } from "../components/UI";
+import { api } from "../lib/api";
 
 export default function AuthPage() {
-  const { db, session, userLoading, avatar, config, userError } = useApp();
+  const { db, session, userLoading, config, userError } = useApp();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [mode, setMode] = useState<"register" | "login" | "reset" | "recovery">(
@@ -26,8 +27,7 @@ export default function AuthPage() {
   const [show, setShow] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [notice, setNotice] = useState(""),
-    [agreed, setAgreed] = useState(false);
+    [notice, setNotice] = useState("");
   const redirect = params.get("redirect");
   const safeRedirect =
     redirect?.startsWith("/") &&
@@ -43,13 +43,8 @@ export default function AuthPage() {
       mode !== "recovery" &&
       mode !== "reset"
     )
-      navigate(
-        avatar
-          ? safeRedirect
-          : `/avatar?next=${encodeURIComponent(safeRedirect)}`,
-        { replace: true },
-      );
-  }, [session, userLoading, userError, avatar, navigate, safeRedirect, mode]);
+      navigate(safeRedirect, { replace: true });
+  }, [session, userLoading, userError, navigate, safeRedirect, mode]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -70,7 +65,7 @@ export default function AuthPage() {
         return;
       }
       if (mode === "recovery") {
-        if (password.length < 8) throw new Error("密碼至少需要 8 個字元。");
+        if (password.length < 6) throw new Error("密碼至少需要 6 個字元。");
         if (password !== confirm) throw new Error("兩次輸入的密碼不一致。");
         const { error } = await db.auth.updateUser({ password });
         if (error) throw error;
@@ -78,17 +73,21 @@ export default function AuthPage() {
         setNotice("密碼已更新，請繼續登入。");
         return;
       }
-      authSchema.parse({ email, password });
+      const credentials = authSchema.parse({ email: email.trim(), password });
       if (mode === "register") {
-        if (!name.trim() || name.trim().length > 40)
-          throw new Error("暱稱需為 1–40 個字。");
-        if (password !== confirm) throw new Error("兩次輸入的密碼不一致。");
-        if (!agreed) throw new Error("請先確認個人照片與資料用途。");
+        if (name.trim().length > 40) throw new Error("暱稱最多 40 個字。");
+        if (config?.instantSignup) {
+          await api("/api/auth/register", {
+            body: { ...credentials, display_name: name.trim() },
+          });
+          const { error } = await db.auth.signInWithPassword(credentials);
+          if (error) throw error;
+          return;
+        }
         const { data, error } = await db.auth.signUp({
-          email,
-          password,
+          ...credentials,
           options: {
-            data: { display_name: name.trim() },
+            data: { display_name: name.trim() || credentials.email.split("@")[0].slice(0, 40) },
             emailRedirectTo: `${window.location.origin}/auth`,
           },
         });
@@ -98,7 +97,7 @@ export default function AuthPage() {
             "註冊資料已送出。請前往信箱點擊驗證連結，再回來登入建立分身。若你已有帳號，可直接切換登入。",
           );
       } else {
-        const { error } = await db.auth.signInWithPassword({ email, password });
+        const { error } = await db.auth.signInWithPassword(credentials);
         if (error) throw error;
       }
     } catch (e) {
@@ -106,6 +105,8 @@ export default function AuthPage() {
       setError(
         /Invalid login credentials/.test(msg)
           ? "信箱或密碼不正確，請再次確認。"
+          : /already.*registered|already.*exists/i.test(msg)
+            ? "這個信箱已註冊，請切換登入。"
           : /Email not confirmed/.test(msg)
             ? "請先前往信箱驗證帳號。"
             : msg,
@@ -156,7 +157,9 @@ export default function AuthPage() {
                 ? "找回你的帳號"
                 : "設定新密碼"}
         </h2>
-        <p>先認識你，再找到適合你的風格。</p>
+        <p>{mode === "register"
+          ? config?.instantSignup ? "Email 和密碼就能開始，註冊後直接登入。" : "填寫 Email 和密碼，輕鬆開始探索。"
+          : "登入後，繼續你的風格旅程。"}</p>
         {(mode === "login" || mode === "register") && (
           <div className="auth-tabs">
             <button
@@ -188,14 +191,13 @@ export default function AuthPage() {
         <form onSubmit={submit} className="stack-form">
           {mode === "register" && (
             <label>
-              你的暱稱
+              你的暱稱（選填）
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="希望我們怎麼稱呼你？"
                 maxLength={40}
                 autoComplete="nickname"
-                required
               />
             </label>
           )}
@@ -219,8 +221,8 @@ export default function AuthPage() {
                   type={show ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="至少 8 個字元"
-                  minLength={8}
+                  placeholder="至少 6 個字元"
+                  minLength={6}
                   maxLength={128}
                   autoComplete={
                     mode === "login" ? "current-password" : "new-password"
@@ -238,7 +240,7 @@ export default function AuthPage() {
               </div>
             </label>
           )}
-          {(mode === "register" || mode === "recovery") && (
+          {mode === "recovery" && (
             <label>
               確認密碼
               <input
@@ -248,22 +250,8 @@ export default function AuthPage() {
                 placeholder="再次輸入密碼"
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={6}
               />
-            </label>
-          )}
-          {mode === "register" && (
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                required
-              />
-              <span>
-                我了解照片將用於建立私人分身與試穿展示，並可隨時在衣櫃刪除。外部
-                AI 資料傳送需另外授權。
-              </span>
             </label>
           )}
           <button
@@ -274,7 +262,7 @@ export default function AuthPage() {
               <Spinner label="正在連接你的風格空間" />
             ) : mode === "register" ? (
               <>
-                註冊並建立分身 <ArrowUpRight size={18} />
+                註冊並開始探索 <ArrowUpRight size={18} />
               </>
             ) : mode === "login" ? (
               <>
@@ -287,6 +275,7 @@ export default function AuthPage() {
             )}
           </button>
         </form>
+        {mode === "register" && <p className="fine-print">照片與身形可稍後建立；外部 AI 資料傳送會另行詢問授權。</p>}
         {mode === "login" ? (
           <button
             className="text-link auth-secondary"

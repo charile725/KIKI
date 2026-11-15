@@ -86,14 +86,17 @@ export function createSupabaseFixture() {
           .forEach((t) => (tables[t] = []));
         return send(res, 200, { ok: true });
       }
-      if (path === "/auth/v1/signup") {
+      const adminSignup = path === "/auth/v1/admin/users" && req.method === "POST";
+      if (path === "/auth/v1/signup" || adminSignup) {
+        if (adminSignup && !["sb_secret_test_only", "sb_secret_e2e_only"].includes(String(req.headers.apikey)))
+          return send(res, 401, { message: "Invalid admin key" });
         if (users.some((u) => u.email === body.email))
           return send(res, 422, { msg: "User already registered" });
         const user: User = {
           id: randomUUID(),
           email: String(body.email),
           password: String(body.password),
-          user_metadata: (body.data as Row) || {},
+          user_metadata: ((adminSignup ? body.user_metadata : body.data) as Row) || {},
           aud: "authenticated",
           app_metadata: { provider: "email", providers: ["email"] },
           created_at: new Date().toISOString(),
@@ -106,6 +109,11 @@ export function createSupabaseFixture() {
           personalize: false,
           external_ai_consent: false,
         });
+        if (adminSignup) {
+          const { password: _, ...safe } = user;
+          void _;
+          return send(res, 200, { ...safe, email_confirmed_at: new Date().toISOString() });
+        }
         return send(res, 200, session(user));
       }
       if (path === "/auth/v1/token") {

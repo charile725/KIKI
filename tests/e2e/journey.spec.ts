@@ -24,9 +24,7 @@ test("註冊 → 分身 → 偏好 → 推薦 → 試穿 → 保存 → 重整 �
     .getByLabel("電子郵件")
     .fill(`kiki-${info.project.name}@example.com`);
   await page.getByLabel("密碼", { exact: true }).fill("StyleDemo2026!");
-  await page.getByLabel("確認密碼").fill("StyleDemo2026!");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "註冊並建立分身" }).click();
+  await page.getByRole("button", { name: "註冊並開始探索" }).click();
   await expect(page).toHaveURL(/\/avatar/);
   const photo = await sharp(
     Buffer.from(
@@ -203,15 +201,13 @@ test("商品篩選與手機選單", async ({ page }, info) => {
 test("照片缺漏、格式、解析度與相機拒絕／倒數拍攝（測試畫面串流）", async ({
   page,
 }, info) => {
-  await page.goto("/auth");
+  await page.goto("/auth?redirect=%2Favatar");
   await page.getByLabel("你的暱稱").fill("相機測試");
   await page
     .getByLabel("電子郵件")
     .fill(`camera-${info.project.name}@example.com`);
   await page.getByLabel("密碼", { exact: true }).fill("CameraTest2026!");
-  await page.getByLabel("確認密碼").fill("CameraTest2026!");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "註冊並建立分身" }).click();
+  await page.getByRole("button", { name: "註冊並開始探索" }).click();
   await expect(page).toHaveURL(/\/avatar/);
   await page.getByRole("button", { name: "下一步" }).click();
   await expect(page.getByRole("alert")).toContainText("請先提供正面與側面照片");

@@ -78,6 +78,7 @@ export interface AppConfig {
   supabaseUrl: string;
   supabaseKey: string;
   configured: boolean;
+  instantSignup?: boolean;
   recommendationMode: "demo" | "ai";
   tryonMode: "demo" | "ai";
 }

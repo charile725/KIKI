@@ -58,7 +58,7 @@ try {
     .getByText("先連接你的 Supabase 測試專案", { exact: true })
     .waitFor();
   assert.equal(
-    await page.getByRole("button", { name: "註冊並建立分身" }).isDisabled(),
+    await page.getByRole("button", { name: "註冊並開始探索" }).isDisabled(),
     true,
   );
   await page.setViewportSize({ width: 390, height: 844 });
