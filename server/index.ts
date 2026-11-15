@@ -7,11 +7,11 @@ import { readFile } from "node:fs/promises";
 import { resolve, extname, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { catalog } from "../shared/catalog";
-import type { Avatar, Product, Profile, Tryon } from "../shared/types";
-import { recommendationSchema, tryonSchema } from "../shared/validation";
-import { recommend } from "./recommend";
-import { getTryonAdapter } from "./tryon";
+import { catalog } from "../shared/catalog.js";
+import type { Avatar, Product, Profile, Tryon } from "../shared/types.js";
+import { recommendationSchema, tryonSchema } from "../shared/validation.js";
+import { recommend } from "./recommend.js";
+import { getTryonAdapter } from "./tryon.js";
 
 class HttpError extends Error {
   constructor(
@@ -63,6 +63,20 @@ function send(res: ServerResponse, status: number, data: unknown) {
 async function json(req: IncomingMessage) {
   if (!req.headers["content-type"]?.startsWith("application/json"))
     throw new HttpError(415, "需要 JSON 格式的請求。");
+  // Vercel may have consumed the stream and exposed JSON through req.body.
+  if ("body" in req) {
+    let body: unknown;
+    try {
+      body = req.body;
+    } catch {
+      throw new HttpError(400, "無效的 JSON。");
+    }
+    if (body !== undefined) {
+      if (Buffer.byteLength(JSON.stringify(body)) > 16_384)
+        throw new HttpError(413, "請求內容過大。");
+      return body;
+    }
+  }
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {

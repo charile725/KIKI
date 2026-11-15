@@ -1,6 +1,6 @@
 # KIKI — 你的風格，由你定義
 
-繁體中文服飾購物 Demo。React + TypeScript + Vite、Node.js API、**Supabase Auth / PostgreSQL / Private Storage**。目前沒有連接或修改任何遠端資料庫，也沒有部署。
+繁體中文服飾購物 Demo。React + TypeScript + Vite、Node.js API、**Supabase Auth / PostgreSQL / Private Storage**。支援 Vercel 部署；本次修正未連接或修改任何遠端資料庫。
 
 介面以**手機使用為主**：底部五入口、固定試穿／收藏與分身下一步、可展開的衣櫃設定、較大的表單與觸控區。桌機與平板仍保留完整流程；詳細設計與修改檔案見 [手機 UI / UX 說明](docs/MOBILE-UX.md)。
 
@@ -33,9 +33,20 @@ npm.cmd run build
 npm.cmd start
 ```
 
-`npm start` 同時提供 `dist` 與 API；沒有任何部署腳本或開機自動 Migration。
+`npm start` 同時提供 `dist` 與 API；不會在啟動時自動執行 Migration。
 
 若出現 `Unexpected token 'T', "The page c"... is not valid JSON`，代表 API 請求收到文字錯誤頁，並非預期的 JSON。新版會顯示失敗的 API 路徑、HTTP 狀態與後端路由提示。本機請使用 `npm.cmd run dev` 同時啟動前後端，或建置後使用 `npm.cmd start`；僅提供 `dist` 的靜態主機不會執行 Node API，必須另行啟動後端並將 `/api/*` 轉送至該服務。可開啟同一網站的 `/api/health` 確認是否回傳 JSON；文字或 HTML 頁面表示需檢查主機路由或後端服務。
+
+## Vercel 部署
+
+專案包含 `api/index.ts` 與 `vercel.json`：Vercel 將 `/api/*` 交給既有 Node API，其他前端路由回到 `index.html`，商品圖與靜態檔案仍直接提供。試穿所需的 `public/products` 素材也會打包進 Function。
+
+1. 在既有 Vercel 專案部署包含這些檔案的版本。Framework Preset 為 Vite，建置指令為 `npm run build`，輸出目錄為 `dist`。
+2. 在 Vercel 的 Environment Variables 設定 `APP_ORIGIN=https://ai-sale-alpha.vercel.app`。若綁定其他正式網域，改填實際使用的網址，不加結尾斜線。本機 `.env` 不會自動成為雲端設定。
+3. 尚未設定 Supabase 時，商品 API 仍提供八件示範商品；如需會員、收藏與試穿，再設定 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`，並依下節執行 Migration、設定 Supabase Auth 的 Site URL 與 Redirect URLs。
+4. 部署完成後檢查 `/api/health`、`/api/config`、`/api/products` 都回傳 JSON，並直接開啟、重新整理 `/products/cloud-blazer`。API 若回傳 Vercel 的 `NOT_FOUND`，代表該版本未包含 Function 或部署目錄設定錯誤。
+
+路由與 Function 配置依照 [Vercel Node.js Functions](https://vercel.com/docs/functions/runtimes/node-js) 與 [Vite SPA 部署說明](https://vercel.com/docs/frameworks/frontend/vite#using-vite-to-make-spas)。
 
 ## Supabase 設定與 Migration
 

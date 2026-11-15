@@ -15,7 +15,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:api": "node --env-file-if-exists=.env --import tsx --watch server/index.ts",
     "dev:web": "vite --host 127.0.0.1",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "lint": "eslint .",
     "build": "npm run typecheck && vite build",
     "start": "node --env-file-if-exists=.env --import tsx server/index.ts",

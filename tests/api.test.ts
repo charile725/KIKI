@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import sharp from "sharp";
 import { randomUUID } from "node:crypto";
-import { handler } from "../server/index";
+import handler from "../api/index";
 import { createSupabaseFixture } from "./fixtures/supabase";
 import { createClient } from "@supabase/supabase-js";
 const listen = (server: Server) =>
@@ -20,7 +20,15 @@ const close = (server: Server) =>
 test("實際 Node API：驗證 JWT、庫存、照片、生成、冪等與失敗狀態（Supabase HTTP mock）", async () => {
   const fixture = createSupabaseFixture();
   const supabase = await listen(fixture.server);
-  const app = createServer(handler);
+  const app = createServer(async (req, res) => {
+    // Emulate Vercel exposing a parsed body after consuming the raw stream.
+    if (req.headers["x-test-parsed-body"] === "1") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk);
+      Object.assign(req, { body: JSON.parse(Buffer.concat(chunks).toString()) });
+    }
+    await handler(req, res);
+  });
   const url = await listen(app);
   process.env.SUPABASE_URL = supabase;
   process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_only";
@@ -120,6 +128,22 @@ test("實際 Node API：驗證 JWT、庫存、照片、生成、冪等與失敗�
       (await response.json()).recommendations[0].product_id,
       "cloud-blazer",
     );
+    response = await fetch(url + "/api/recommend", {
+      method: "POST",
+      headers: { ...headers, "x-test-parsed-body": "1" },
+      body: JSON.stringify({ prompt: "我想找上台報告適合的外套" }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      (await response.json()).recommendations[0].product_id,
+      "cloud-blazer",
+    );
+    response = await fetch(url + "/api/recommend", {
+      method: "POST",
+      headers: { ...headers, "x-test-parsed-body": "1" },
+      body: JSON.stringify({ prompt: "外套", padding: "a".repeat(16_385) }),
+    });
+    assert.equal(response.status, 413);
     fixture.files.delete(photoPath);
     response = await post("/api/tryons", {
       ...request,

@@ -1,4 +1,4 @@
-import type { Product } from "./types";
+import type { Product } from "./types.js";
 // 唯一的示範商品來源。SQL seed 由 scripts/assets.mjs 同步產出，非真實商店庫存。
 export const catalog: Product[] = [
   {

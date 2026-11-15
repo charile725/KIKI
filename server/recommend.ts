@@ -3,9 +3,9 @@ import type {
   Product,
   Profile,
   RecommendationResult,
-} from "../shared/types";
+} from "../shared/types.js";
 import { z } from "zod";
-import { boundedResponse } from "./tryon";
+import { boundedResponse } from "./tryon.js";
 
 export function demoRecommend(
   prompt: string,
