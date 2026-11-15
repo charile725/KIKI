@@ -76,6 +76,13 @@ test("註冊 → 分身 → 偏好 → 推薦 → 試穿 → 保存 → 重整 �
     timeout: 20_000,
   });
   await expect(page.locator(".simulation-note")).toContainText("沒有 AI 生成");
+  const analysis = page.getByRole("region", { name: "根據你的偏好分析" });
+  await expect(analysis.getByRole("listitem")).toHaveCount(2);
+  await expect(analysis.getByRole("listitem").filter({ hasText: "合身度" })).not.toHaveAttribute("aria-label", /資料不足/);
+  await analysis.getByRole("button", { name: "完整分析" }).click();
+  await expect(analysis.getByRole("listitem")).toHaveCount(5);
+  await analysis.getByRole("button", { name: "查看說明" }).click();
+  await expect(analysis.locator(".fit-analysis-help")).toContainText("每差 6 cm");
   await page.screenshot({
     path: `artifacts/fitting-${info.project.name}.png`,
     fullPage: true,
@@ -144,6 +151,32 @@ test("註冊 → 分身 → 偏好 → 推薦 → 試穿 → 保存 → 重整 �
     ),
   ).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test("版型分析：未登入時採用公開基準、缺失數據與窄螢幕不溢出", async ({ page }, info) => {
+  await page.goto("/products/cloud-blazer");
+  const analysis = page.getByRole("region", { name: "商品版型分析" });
+  await expect(analysis.getByRole("listitem")).toHaveCount(5);
+  await expect(analysis.getByRole("listitem").first()).toHaveAttribute("aria-label", /版型：\+1/);
+  await expect(analysis.getByRole("listitem").filter({ hasText: "合身度" })).toHaveAttribute("aria-label", /資料不足/);
+  await expect(analysis).toContainText("以「合身」偏好為比較基準");
+  await page.locator(".size-options").getByRole("button", { name: "M", exact: true }).click();
+  await expect(analysis.locator(".fit-analysis-context")).toContainText("M 號");
+  await expect(analysis.locator(".fit-analysis-details")).toContainText("商品衣長 73 cm");
+  await analysis.getByRole("button", { name: "查看說明" }).click();
+  await expect(analysis.locator(".fit-analysis-help")).toBeVisible();
+  await analysis.getByRole("button", { name: "查看說明" }).click();
+  await mkdir("artifacts", { recursive: true });
+  await analysis.screenshot({
+    path: `artifacts/fit-analysis-${info.project.name}.png`,
+    style: ".header, .mobile-bottom-nav { visibility: hidden; }",
+  });
+  if (info.project.name === "mobile") await page.setViewportSize({ width: 320, height: 568 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await analysis.getByRole("button", { name: "收合分析" }).click();
+  await expect(analysis.getByRole("listitem")).toHaveCount(2);
+  await analysis.getByRole("button", { name: "完整分析" }).click();
+  await expect(analysis.getByRole("listitem")).toHaveCount(5);
 });
 test("商品篩選與手機選單", async ({ page }, info) => {
   await page.goto("/products");

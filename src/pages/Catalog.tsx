@@ -14,6 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useApp } from "../context";
+import FitAnalysis from "../components/FitAnalysis";
 import { api } from "../lib/api";
 import type { RecommendationResult } from "../../shared/types";
 import { errorText, recommendationSchema } from "../../shared/validation";
@@ -337,7 +338,7 @@ export default function CatalogPage() {
 }
 export function ProductPage() {
   const { id } = useParams();
-  const { products, catalogSource, toggleFavorite, favorites, toast } =
+  const { products, catalogSource, toggleFavorite, favorites, toast, profile, avatar } =
     useApp();
   const product = products.find((p) => p.id === id);
   const [size, setSize] = useState(""),
@@ -467,6 +468,14 @@ export function ProductPage() {
               <strong>{product.category}</strong>
             </div>
           </div>
+          <FitAnalysis
+            key={product.id}
+            product={product}
+            size={selectedSize}
+            preference={profile?.fit_preference}
+            body={avatar}
+            personalized={!!profile?.personalize}
+          />
           <details className="size-table" open>
             <summary>
               <Ruler size={17} />

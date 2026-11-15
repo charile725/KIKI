@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useApp } from "../context";
+import FitAnalysis from "../components/FitAnalysis";
 import { api } from "../lib/api";
 import { ensure } from "../lib/data";
 import type { Product, Tryon } from "../../shared/types";
@@ -367,6 +368,14 @@ function FittingStudio({ product }: { product: Product }) {
               調整分身 <ArrowUpRight size={13} />
             </Link>
           </div>
+          <FitAnalysis
+            product={product}
+            size={size}
+            preference={profile?.fit_preference}
+            body={avatar}
+            personalized={!!profile?.personalize}
+            compact
+          />
           {config?.tryonMode === "ai" && !profile?.external_ai_consent && (
             <ErrorBox message="正式 AI 試穿需要外部資料傳送授權，請到個人衣櫃開啟。" />
           )}
